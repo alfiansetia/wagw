@@ -80,7 +80,7 @@ whatsapp.onMessageReceived(async (msg) => {
                 answering: msg, // for quoting message
             });
         } else {
-            var pesan =  rows[0].response
+            var pesan =  rows[0]?.response || 'Menu tidak ada'
             whatsapp.sendTextMessage({
                 sessionId: msg.sessionId,
                 to: msg.key.remoteJid,
