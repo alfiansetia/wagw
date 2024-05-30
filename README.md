@@ -25,13 +25,13 @@ KEY=mysupersecretkey # For Securing Some Data
 Clone the project
 
 ```bash
-  git clone https://github.com/mimamch/wa_gateway.git
+  git clone https://github.com/alfiansetia/wagw.git
 ```
 
 Go to the project directory
 
 ```bash
-  cd wa_gateway
+  cd wagw
 ```
 
 Install dependencies
@@ -57,7 +57,7 @@ Open On Browser & Start New Session
 #### Add new session
 
 ```
-  GET /start-session?session=NEW_SESSION_NAME&scan=true
+  POST /sessions?session=NEW_SESSION_NAME&scan=true
 ```
 
 | Parameter | Type      | Description                            |

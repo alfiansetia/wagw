@@ -9,3 +9,8 @@ exports.responseErrorWithMessage = (
 ) => ({
   message: message,
 });
+
+exports.responseJSON = (message = "", data = null) => ({
+  message: message,
+  data:data
+});

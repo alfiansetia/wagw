@@ -1,68 +1,94 @@
 const { toDataURL } = require("qrcode");
+const { v4: uuidv4 } = require('uuid');
 const whatsapp = require("wa-multi-session");
 const ValidationError = require("../../utils/error");
 const {
   responseSuccessWithMessage,
   responseSuccessWithData,
+  responseJSON
 } = require("../../utils/response");
 
-exports.createSession = async (req, res, next) => {
+exports.store = async (req, res, next) => {
   try {
-    const scan = req.query.scan;
-    const sessionName =
-      req.body.session || req.query.session || req.headers.session;
-    if (!sessionName) {
-      throw new Error("Bad Request");
+    const sessionID = uuidv4();
+    if (!sessionID) {
+      throw new ValidationError("Bad Request");
     }
-    whatsapp.onQRUpdated(async (data) => {
-      if (res && !res.headersSent) {
-        const qr = await toDataURL(data.qr);
-        if (scan && data.sessionId == sessionName) {
-          // res.render("scan", { qr: qr });
-            res.status(200).json(
-                responseSuccessWithData({
-                    qr: qr,
-                })
-            );
-        } else {
-          res.status(200).json(
-            responseSuccessWithData({
-              qr: qr,
-            })
-          );
+    const getQRPromise = new Promise((resolve, reject) => {
+      whatsapp.onQRUpdated(async (data) => {
+        if (data.sessionId === sessionID) {
+          const qr = await toDataURL(data.qr);
+          resolve(qr);
         }
-      }
+      });
     });
-    await whatsapp.startSession(sessionName, { printQR: true });
+
+    await whatsapp.startSession(sessionID, { printQR: true });
+    const qr = await getQRPromise;
+    res.status(200).json(
+      responseJSON("Session started successfully", {
+        id : sessionID,
+        qr : qr
+      })
+    );
   } catch (error) {
     next(error);
   }
 };
-exports.deleteSession = async (req, res, next) => {
+
+exports.destroy = async (req, res, next) => {
   try {
-    const sessionName =
-      req.body.session || req.query.session || req.headers.session;
-    if (!sessionName) {
-      throw new ValidationError("session Required");
+    const sessionId = req.params.id;
+    const session = whatsapp.getSession(sessionId);
+    if (session) {
+      whatsapp.deleteSession(sessionId);
+      res.status(200).json(responseSuccessWithMessage("Success Deleted " + sessionId));
+    } else {
+      res.status(404).json({ message: "Session not found" });
     }
-    whatsapp.deleteSession(sessionName);
-    res
-      .status(200)
-      .json(responseSuccessWithMessage("Success Deleted " + sessionName));
   } catch (error) {
     next(error);
   }
 };
-exports.sessions = async (req, res, next) => {
+
+exports.index = async (req, res, next) => {
   try {
-    const key = req.body.key || req.query.key || req.headers.key;
-
-    // is KEY provided and secured
-    if (process.env.KEY && process.env.KEY != key) {
-      throw new ValidationError("Invalid Key");
-    }
-
     res.status(200).json(responseSuccessWithData(whatsapp.getAllSession()));
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.show = async (req, res, next) => {
+  try {
+    const sessionID = req.params.id;
+    const session = whatsapp.getSession(sessionID);
+    if(!session){
+      res.status(404).json(responseSuccessWithMessage("Session "+ sessionID +" Not Found!"));
+    }
+    if (session?.user?.id) {
+      res.status(200).json(responseJSON('', {
+        session: session,
+        qr: null,
+        is_scan: true
+      }));
+    } else {
+      const getQRPromise = new Promise((resolve, reject) => {
+        whatsapp.onQRUpdated(async (data) => {
+          if (data.sessionId === sessionID) {
+            const qr = await toDataURL(data.qr);
+            resolve(qr);
+          }
+        });
+      });
+      await whatsapp.startSession(sessionID, { printQR: true });
+      const qr = await getQRPromise;
+      res.status(200).json(responseJSON('', {
+        session: session,
+        qr: qr,
+        is_scan: false
+      }));
+    }
   } catch (error) {
     next(error);
   }
