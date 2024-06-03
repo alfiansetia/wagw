@@ -41,6 +41,14 @@ const connection = mysql.createConnection({
     database: process.env.DB_DATABASE
 });
 
+connection.connect((err) => {
+    if (err) {
+      console.error('Error connecting to the database:', err);
+      return;
+    }
+    console.log('Connected to the database');
+  });
+
 whatsapp.onConnected((session) => {
   console.log("connected => ", session);
 
@@ -55,11 +63,11 @@ whatsapp.onConnecting((session) => {
 });
 
 whatsapp.onMessageReceived(async (msg) => {
-    console.log(msg);
+    // console.log(msg);
     if (msg.key.fromMe || msg.key.remoteJid.includes("status")) return;
 
     let pilihan = msg.message.conversation || msg.message.extendedTextMessage.text;
-
+    console.log(pilihan);
     await whatsapp.readMessage({
         sessionId: msg.sessionId,
         key: msg.key,
@@ -70,23 +78,23 @@ whatsapp.onMessageReceived(async (msg) => {
         duration: 3000,
     });
 
-    connection.query('SELECT * FROM autoreplys WHERE keyword = ' + pilihan, function (err, rows) {
+    connection.query('SELECT * FROM `autoreplys` WHERE keyword="'+ pilihan +'";', function (err, rows) {
         console.log(rows)
-        if (rows == null) {
-            whatsapp.sendTextMessage({
-                sessionId: msg.sessionId,
-                to: msg.key.remoteJid,
-                text: "Menu tidak ditemukan, ketik 000 untuk menampilkan semua menu",
-                answering: msg, // for quoting message
-            });
+        if (rows.length > 0) {
+          var pesan =  rows[0]?.response || 'Menu tidak Tersedia'
+          whatsapp.sendTextMessage({
+              sessionId: msg.sessionId,
+              to: msg.key.remoteJid,
+              text: pesan,
+              answering: msg,
+          });
         } else {
-            var pesan =  rows[0]?.response || 'Menu tidak ada'
-            whatsapp.sendTextMessage({
-                sessionId: msg.sessionId,
-                to: msg.key.remoteJid,
-                text: pesan,
-                answering: msg, // for quoting message
-            });
+          whatsapp.sendTextMessage({
+            sessionId: msg.sessionId,
+            to: msg.key.remoteJid,
+            text: "Menu tidak ditemukan, ketik 000 untuk menampilkan semua menu",
+            answering: msg,
+        });
         }
     });
 
